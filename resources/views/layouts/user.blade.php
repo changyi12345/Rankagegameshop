@@ -8,7 +8,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Myanmar:wght@400;500;600;700&display=swap" rel="stylesheet">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @if(file_exists(public_path('build/manifest.json')))
+        @php
+            $manifest = json_decode(file_get_contents(public_path('build/manifest.json')), true);
+        @endphp
+        @if(isset($manifest['resources/css/app.css']))
+            <link rel="stylesheet" href="/build/{{ $manifest['resources/css/app.css']['file'] }}">
+        @endif
+        @if(isset($manifest['resources/js/app.js']))
+            <script type="module" src="/build/{{ $manifest['resources/js/app.js']['file'] }}"></script>
+        @endif
+    @else
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @endif
     <style>
         [x-cloak] { display: none !important; }
     </style>
@@ -23,12 +35,23 @@
                 <div class="flex items-center justify-between">
                     <!-- Logo -->
                     <div class="flex items-center space-x-2">
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                            <span class="text-2xl">🎮</span>
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center overflow-hidden flex-shrink-0">
+                            @php
+                                $siteLogo = \App\Models\Setting::get('site_logo');
+                                $siteName = \App\Models\Setting::get('site_name', 'RanKage');
+                                $siteTagline = \App\Models\Setting::get('site_tagline', 'Game Shop');
+                            @endphp
+                            @if($siteLogo)
+                                <img src="{{ asset('storage/' . $siteLogo) }}" 
+                                     alt="{{ $siteName }} Logo" 
+                                     class="w-full h-full object-contain p-1">
+                            @else
+                                <span class="text-2xl">🎮</span>
+                            @endif
                         </div>
                         <div>
-                            <h1 class="text-lg font-bold text-light-text">RanKage</h1>
-                            <p class="text-xs text-gray-400">Game Shop</p>
+                            <h1 class="text-lg font-bold text-light-text">{{ $siteName }}</h1>
+                            <p class="text-xs text-gray-400">{{ $siteTagline }}</p>
                         </div>
                     </div>
 

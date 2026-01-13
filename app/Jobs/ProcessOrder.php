@@ -39,14 +39,32 @@ class ProcessOrder implements ShouldQueue
             $result = $service->processTopUp($this->order);
 
             if ($result['success']) {
-                // Notify user via Telegram
-                if ($this->order->user && $this->order->user->telegram_id) {
-                    $telegram = new TelegramService();
-                    $telegram->sendOrderStatus($this->order, $this->order->user);
+                // Check if order is completed
+                $this->order->refresh();
+                if ($this->order->status === 'completed') {
+                    // Notify user via Telegram
+                    if ($this->order->user && $this->order->user->telegram_id) {
+                        $telegram = new TelegramService();
+                        $telegram->sendOrderStatus($this->order, $this->order->user);
+                    }
+
+                    // Create notification for user
+                    \App\Models\Notification::create([
+                        'type' => 'order',
+                        'recipient_type' => 'user',
+                        'recipient_id' => $this->order->user_id,
+                        'title' => 'Order Completed',
+                        'message' => "Your order #{$this->order->order_id} has been completed successfully!",
+                        'status' => 'sent',
+                        'is_read' => false,
+                        'channel' => 'web',
+                        'sent_at' => now(),
+                    ]);
                 }
 
                 Log::info("Order processed successfully", [
                     'order_id' => $this->order->order_id,
+                    'status' => $this->order->status,
                 ]);
             } else {
                 // Check if we should retry

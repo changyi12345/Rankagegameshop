@@ -78,6 +78,19 @@ class WebhookController extends Controller
             // If completed, mark as completed
             if ($newStatus === 'completed') {
                 $order->markAsCompleted();
+                
+                // Create notification for user
+                \App\Models\Notification::create([
+                    'type' => 'order',
+                    'recipient_type' => 'user',
+                    'recipient_id' => $order->user_id,
+                    'title' => 'Order Completed',
+                    'message' => "Your order #{$order->order_id} has been completed successfully!",
+                    'status' => 'sent',
+                    'is_read' => false,
+                    'channel' => 'web',
+                    'sent_at' => now(),
+                ]);
             }
 
             // If failed, mark as failed
@@ -86,6 +99,19 @@ class WebhookController extends Controller
                     'error_message' => $data['message'] ?? 'Order failed',
                 ]);
                 $order->markAsFailed($data['message'] ?? 'Order failed');
+                
+                // Create notification for user
+                \App\Models\Notification::create([
+                    'type' => 'order',
+                    'recipient_type' => 'user',
+                    'recipient_id' => $order->user_id,
+                    'title' => 'Order Failed',
+                    'message' => "Your order #{$order->order_id} has failed. Please contact support.",
+                    'status' => 'sent',
+                    'is_read' => false,
+                    'channel' => 'web',
+                    'sent_at' => now(),
+                ]);
             }
 
             Log::info('G2Bulk Webhook: Order updated', [

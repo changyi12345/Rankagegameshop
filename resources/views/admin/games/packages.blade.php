@@ -40,6 +40,7 @@
                     @php
                         $priceInKs = ($catalogue['amount'] ?? 0) * ($exchangeRate ?? 2100);
                         $isImported = collect($packages ?? [])->contains('name', $catalogue['name'] ?? '');
+                        $importedPackage = $isImported ? collect($packages ?? [])->firstWhere('name', $catalogue['name'] ?? '') : null;
                     @endphp
                     <tr class="border-b border-dark-border hover:bg-dark-base transition-colors">
                         <td class="py-3 px-4">
@@ -49,7 +50,11 @@
                             <span class="text-primary font-semibold">${{ number_format($catalogue['amount'] ?? 0, 2) }}</span>
                         </td>
                         <td class="py-3 px-4">
-                            <span class="text-secondary font-semibold">{{ number_format($priceInKs) }} Ks</span>
+                            @if($isImported && $importedPackage)
+                                <span class="text-secondary font-semibold" id="g2bulk-price-{{ $catalogue['id'] ?? 0 }}">{{ number_format($importedPackage->price, 0) }} MMK</span>
+                            @else
+                                <span class="text-secondary font-semibold" id="g2bulk-price-{{ $catalogue['id'] ?? 0 }}">{{ number_format($priceInKs, 0) }} MMK</span>
+                            @endif
                         </td>
                         <td class="py-3 px-4">
                             @if($isImported)
@@ -59,12 +64,17 @@
                             @endif
                         </td>
                         <td class="py-3 px-4">
-                            @if($isImported)
-                                <span class="text-gray-500 text-sm">Already imported</span>
-                            @else
-                                <button onclick="importG2BulkPackage({{ $catalogue['id'] ?? 0 }}, '{{ $catalogue['name'] ?? '' }}', {{ $catalogue['amount'] ?? 0 }})" 
-                                        class="text-primary hover:text-primary-light text-sm">Import</button>
-                            @endif
+                            <div class="flex items-center space-x-2">
+                                @if($isImported && $importedPackage)
+                                    <button onclick="editG2BulkPackagePrice({{ $game->id ?? 0 }}, {{ $importedPackage->id }}, {{ $catalogue['id'] ?? 0 }}, '{{ $catalogue['name'] ?? '' }}', {{ $catalogue['amount'] ?? 0 }}, {{ $importedPackage->price }})" 
+                                            class="text-primary hover:text-primary-light text-sm">Edit MMK</button>
+                                @else
+                                    <button onclick="editG2BulkPackagePrice({{ $game->id ?? 0 }}, null, {{ $catalogue['id'] ?? 0 }}, '{{ $catalogue['name'] ?? '' }}', {{ $catalogue['amount'] ?? 0 }}, {{ $priceInKs }})" 
+                                            class="text-primary hover:text-primary-light text-sm">Edit MMK</button>
+                                    <button onclick="importG2BulkPackage({{ $catalogue['id'] ?? 0 }}, '{{ $catalogue['name'] ?? '' }}', {{ $catalogue['amount'] ?? 0 }})" 
+                                            class="text-secondary hover:text-secondary-light text-sm">Import</button>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                     @endforeach
@@ -102,7 +112,8 @@
                             <span class="text-gray-400 text-sm ml-1">{{ $game->currency_name ?? '' }}</span>
                         </td>
                         <td class="py-3 px-4">
-                            <span class="text-secondary font-semibold">{{ number_format($package->price) }} Ks</span>
+                            <span class="text-secondary font-semibold">{{ number_format($package->price, 0) }} MMK</span>
+                            <span class="text-gray-500 text-xs ml-1">({{ number_format($package->price, 0) }} Ks)</span>
                         </td>
                         <td class="py-3 px-4">
                             @if($package->bonus > 0)
@@ -164,7 +175,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-300 mb-2">
-                                Price (Myanmar Kyat - Ks) <span class="text-red-400">*</span>
+                                Price (MMK - Myanmar Kyat) <span class="text-red-400">*</span>
                             </label>
                             <input type="number" 
                                    x-model="form.price" 
@@ -173,7 +184,9 @@
                                    step="0.01"
                                    class="input-field" 
                                    placeholder="1000">
-                            <p class="text-xs text-gray-500 mt-1">Enter the price in Myanmar Kyat (Ks)</p>
+                            <p class="text-xs text-gray-500 mt-1">
+                                Enter the price in Myanmar Kyat (MMK/Ks). This price will be displayed to users.
+                            </p>
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-300 mb-2">Bonus Amount (Optional)</label>
@@ -302,12 +315,37 @@ function deletePackage(packageId) {
 }
 
 async function fetchG2BulkPackages() {
+    const gameId = {{ $game->id ?? 0 }};
+    if (!gameId) {
+        alert('❌ Error: Game ID is missing');
+        return;
+    }
+    
     if (!confirm('Fetch packages from G2Bulk API? This will refresh the G2Bulk packages list.')) {
         return;
     }
     
     try {
-        const res = await fetch('/admin/games/{{ $game->id ?? 0 }}/packages/fetch-g2bulk');
+        const res = await fetch(`/admin/games/${gameId}/packages/fetch-g2bulk`, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        
+        if (!res.ok) {
+            const text = await res.text();
+            console.error('Server response:', text);
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await res.text();
+            console.error('Expected JSON but got:', text.substring(0, 200));
+            throw new Error('Server returned non-JSON response');
+        }
+        
         const data = await res.json();
         
         if (data.success) {
@@ -317,8 +355,102 @@ async function fetchG2BulkPackages() {
             alert('❌ Failed to fetch packages: ' + (data.message || 'Unknown error'));
         }
     } catch (e) {
+        console.error('Fetch G2Bulk packages error:', e);
         alert('❌ Error: ' + e.message);
     }
+}
+
+async function editG2BulkPackagePrice(gameId, packageId, catalogueId, catalogueName, catalogueAmount, currentPrice) {
+    const newPrice = prompt(`Edit MMK Price for "${catalogueName}"\n\nCurrent Price: ${formatNumber(currentPrice)} MMK\nUSD Price: $${catalogueAmount.toFixed(2)}\n\nEnter new MMK price:`, currentPrice);
+    
+    if (newPrice === null) {
+        return; // User cancelled
+    }
+    
+    const price = parseFloat(newPrice);
+    if (isNaN(price) || price <= 0) {
+        alert('❌ Please enter a valid price (greater than 0)');
+        return;
+    }
+    
+    if (packageId) {
+        // Update existing imported package
+        try {
+            const res = await fetch(`/admin/games/${gameId}/packages/${packageId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    name: catalogueName,
+                    currency_amount: extractCurrencyAmount(catalogueName),
+                    price: price,
+                    bonus: 0,
+                    is_active: true
+                })
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                // Update price display immediately
+                const priceElement = document.getElementById(`g2bulk-price-${catalogueId}`);
+                if (priceElement) {
+                    priceElement.textContent = formatNumber(price) + ' MMK';
+                }
+                alert('✅ Price updated successfully! Changes will be visible to users immediately.');
+            } else {
+                alert('❌ Failed to update price: ' + (data.message || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('❌ Error: ' + e.message);
+        }
+    } else {
+        // Import with custom price
+        if (!confirm(`Import "${catalogueName}" with custom MMK price?\n\nPrice: ${formatNumber(price)} MMK\nUSD: $${catalogueAmount.toFixed(2)}\n\nThis will create a new package in your local database.`)) {
+            return;
+        }
+        
+        try {
+            const res = await fetch(`/admin/games/${gameId}/packages/import-g2bulk`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    catalogue_id: catalogueId,
+                    catalogue_name: catalogueName,
+                    catalogue_amount: catalogueAmount,
+                    custom_price: price
+                })
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                alert('✅ Package imported with custom price successfully!');
+                location.reload();
+            } else {
+                alert('❌ Failed to import package: ' + (data.message || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('❌ Error: ' + e.message);
+        }
+    }
+}
+
+function formatNumber(num) {
+    return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(num);
+}
+
+function extractCurrencyAmount(name) {
+    const match = name.match(/(\d+)/);
+    return match ? parseInt(match[1]) : 0;
 }
 
 async function importG2BulkPackage(catalogueId, catalogueName, catalogueAmount) {
@@ -391,10 +523,10 @@ function packageFormData() {
                 const data = await res.json();
                 
                 if (data.success) {
-                    this.success = data.message || (packageId ? 'Package updated successfully!' : 'Package created successfully!');
+                    this.success = data.message || (packageId ? '✅ Package updated successfully! Price changes will be visible to users immediately.' : '✅ Package created successfully!');
                     setTimeout(() => {
                         location.reload();
-                    }, 1000);
+                    }, 1500);
                 } else {
                     this.error = data.message || 'Failed to save package';
                 }

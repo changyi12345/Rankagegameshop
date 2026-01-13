@@ -17,8 +17,14 @@
         <div class="card hover:bg-dark-base transition-colors">
             <div class="flex items-start justify-between mb-4">
                 <div class="flex items-center space-x-4">
-                    <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                        <span class="text-4xl">{{ $game->icon ?? '🎮' }}</span>
+                    <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center overflow-hidden flex-shrink-0">
+                        @if($game->image)
+                            <img src="{{ asset('storage/' . $game->image) }}" 
+                                 alt="{{ $game->name }}" 
+                                 class="w-full h-full object-cover">
+                        @else
+                            <span class="text-4xl">{{ $game->icon ?? '🎮' }}</span>
+                        @endif
                     </div>
                     <div>
                         <h3 class="text-xl font-bold text-light-text">{{ $game->name }}</h3>

@@ -8,7 +8,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Myanmar:wght@400;500;600;700&display=swap" rel="stylesheet">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @if(file_exists(public_path('build/manifest.json')))
+        @php
+            $manifest = json_decode(file_get_contents(public_path('build/manifest.json')), true);
+        @endphp
+        @if(isset($manifest['resources/css/app.css']))
+            <link rel="stylesheet" href="/build/{{ $manifest['resources/css/app.css']['file'] }}">
+        @endif
+        @if(isset($manifest['resources/js/app.js']))
+            <script type="module" src="/build/{{ $manifest['resources/js/app.js']['file'] }}"></script>
+        @endif
+    @else
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @endif
     @stack('styles')
 </head>
 <body class="bg-dark-bg text-light-text font-sans antialiased">
@@ -19,8 +31,14 @@
                 <!-- Logo -->
                 <div class="p-6 border-b border-dark-border flex-shrink-0">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                            <span class="text-2xl">🎮</span>
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center overflow-hidden flex-shrink-0">
+                            @if(auth()->user()->avatar)
+                                <img src="{{ asset('storage/' . auth()->user()->avatar) }}" 
+                                     alt="{{ auth()->user()->name }}" 
+                                     class="w-full h-full object-cover">
+                            @else
+                                <span class="text-2xl">🎮</span>
+                            @endif
                         </div>
                         <div>
                             <h1 class="text-lg font-bold text-light-text">RanKage</h1>
@@ -36,6 +54,18 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                         </svg>
                         <span>Dashboard</span>
+                    </a>
+                    <a href="/admin/promotions" class="nav-item {{ request()->is('admin/promotions*') ? 'active' : '' }}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                        </svg>
+                        <span>Promotions</span>
+                    </a>
+                    <a href="/admin/logo" class="nav-item {{ request()->is('admin/logo*') ? 'active' : '' }}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span>Logo</span>
                     </a>
                     <a href="/admin/games" class="nav-item {{ request()->is('admin/games*') ? 'active' : '' }}">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,14 +122,21 @@
                 <!-- User Section -->
                 <div class="p-4 border-t border-dark-border flex-shrink-0">
                     <div class="flex items-center space-x-3 mb-3">
-                        <div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                            <span class="text-lg">👤</span>
+                        <div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            @if(auth()->user()->avatar)
+                                <img src="{{ asset('storage/' . auth()->user()->avatar) }}" 
+                                     alt="{{ auth()->user()->name }}" 
+                                     class="w-full h-full object-cover">
+                            @else
+                                <span class="text-lg">👤</span>
+                            @endif
                         </div>
                         <div class="flex-1 min-w-0">
                             <p class="font-semibold text-light-text text-sm truncate">{{ auth()->user()->name ?? 'Admin' }}</p>
                             <p class="text-xs text-gray-400 truncate">{{ auth()->user()->email ?? 'admin@rankage.com' }}</p>
                         </div>
                     </div>
+                    <a href="/admin/profile" class="w-full btn-outline text-sm py-2 text-center block mb-2">Profile</a>
                     <a href="/logout" class="w-full btn-outline text-sm py-2 text-center block">Logout</a>
                 </div>
             </div>

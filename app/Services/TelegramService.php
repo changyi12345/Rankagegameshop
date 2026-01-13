@@ -12,10 +12,85 @@ class TelegramService
     protected $botToken;
     protected $apiUrl;
 
-    public function __construct()
+    public function __construct($botToken = null)
     {
-        $this->botToken = Setting::get('telegram_bot_token');
+        $this->botToken = $botToken ?? Setting::get('telegram_bot_token');
         $this->apiUrl = "https://api.telegram.org/bot{$this->botToken}";
+    }
+
+    /**
+     * Check if bot token is valid
+     */
+    public function checkBotStatus(): array
+    {
+        if (!$this->botToken) {
+            return [
+                'valid' => false,
+                'message' => 'Bot token not configured',
+            ];
+        }
+
+        try {
+            $response = Http::get("{$this->apiUrl}/getMe");
+            $data = $response->json();
+
+            if ($data['ok'] ?? false) {
+                return [
+                    'valid' => true,
+                    'bot' => $data['result'] ?? null,
+                    'message' => 'Bot is working correctly',
+                ];
+            }
+
+            return [
+                'valid' => false,
+                'message' => $data['description'] ?? 'Invalid bot token',
+            ];
+        } catch (\Exception $e) {
+            return [
+                'valid' => false,
+                'message' => 'Error checking bot status: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Verify chat ID is valid
+     */
+    public function verifyChatId(string $chatId): array
+    {
+        if (!$this->botToken) {
+            return [
+                'valid' => false,
+                'message' => 'Bot token not configured',
+            ];
+        }
+
+        try {
+            $response = Http::post("{$this->apiUrl}/sendMessage", [
+                'chat_id' => $chatId,
+                'text' => '✅ Bot connection test successful!',
+            ]);
+
+            $data = $response->json();
+
+            if ($data['ok'] ?? false) {
+                return [
+                    'valid' => true,
+                    'message' => 'Chat ID is valid and bot can send messages',
+                ];
+            }
+
+            return [
+                'valid' => false,
+                'message' => $data['description'] ?? 'Invalid chat ID or bot cannot send messages',
+            ];
+        } catch (\Exception $e) {
+            return [
+                'valid' => false,
+                'message' => 'Error verifying chat ID: ' . $e->getMessage(),
+            ];
+        }
     }
 
     /**
@@ -28,12 +103,19 @@ class TelegramService
         }
 
         try {
-            $response = Http::post("{$this->apiUrl}/sendMessage", [
+            $payload = [
                 'chat_id' => $chatId,
                 'text' => $message,
                 'parse_mode' => 'HTML',
                 ...$options,
-            ]);
+            ];
+
+            // If reply_markup is provided as array, convert to JSON
+            if (isset($options['reply_markup']) && is_array($options['reply_markup'])) {
+                $payload['reply_markup'] = json_encode($options['reply_markup']);
+            }
+
+            $response = Http::post("{$this->apiUrl}/sendMessage", $payload);
 
             $data = $response->json();
 
@@ -78,7 +160,28 @@ class TelegramService
         $message .= "User: {$order->user->name} ({$order->user->phone})\n";
         $message .= "Status: {$order->status}";
 
-        $this->sendMessage($chatId, $message);
+        // Create inline keyboard buttons for admin
+        $appUrl = config('app.url', 'http://localhost:8000');
+        $buttons = [
+            [
+                [
+                    'text' => '📦 View Order',
+                    'url' => "{$appUrl}/admin/orders/{$order->id}"
+                ],
+                [
+                    'text' => '👤 View User',
+                    'url' => "{$appUrl}/admin/users"
+                ]
+            ]
+        ];
+
+        $replyMarkup = [
+            'inline_keyboard' => $buttons
+        ];
+
+        $this->sendMessage($chatId, $message, [
+            'reply_markup' => $replyMarkup
+        ]);
 
         // Save notification record
         Notification::create([
@@ -111,7 +214,28 @@ class TelegramService
         $message .= "Method: {$payment->method}\n";
         $message .= "User: {$payment->user->name} ({$payment->user->phone})";
 
-        $this->sendMessage($chatId, $message);
+        // Create inline keyboard buttons for admin
+        $appUrl = config('app.url', 'http://localhost:8000');
+        $buttons = [
+            [
+                [
+                    'text' => '💳 Review Payment',
+                    'url' => "{$appUrl}/admin/payments"
+                ],
+                [
+                    'text' => '📦 View Order',
+                    'url' => "{$appUrl}/admin/orders/{$payment->order->id}"
+                ]
+            ]
+        ];
+
+        $replyMarkup = [
+            'inline_keyboard' => $buttons
+        ];
+
+        $this->sendMessage($chatId, $message, [
+            'reply_markup' => $replyMarkup
+        ]);
 
         Notification::create([
             'type' => 'payment',
@@ -186,7 +310,38 @@ class TelegramService
             $message .= "\n\n❌ Your order failed. Amount will be refunded to your wallet.";
         }
 
-        $this->sendMessage($user->telegram_id, $message);
+        // Create inline keyboard buttons
+        $appUrl = config('app.url', 'http://localhost:8000');
+        $buttons = [
+            [
+                [
+                    'text' => '📦 View Order',
+                    'url' => "{$appUrl}/orders/{$order->id}"
+                ],
+                [
+                    'text' => '💰 Check Wallet',
+                    'url' => "{$appUrl}/wallet"
+                ]
+            ],
+            [
+                [
+                    'text' => '🛒 Shop Now',
+                    'url' => "{$appUrl}/"
+                ],
+                [
+                    'text' => '💬 Support',
+                    'url' => "{$appUrl}/support"
+                ]
+            ]
+        ];
+
+        $replyMarkup = [
+            'inline_keyboard' => $buttons
+        ];
+
+        $this->sendMessage($user->telegram_id, $message, [
+            'reply_markup' => $replyMarkup
+        ]);
 
         Notification::create([
             'type' => 'order_status',

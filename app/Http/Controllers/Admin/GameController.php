@@ -26,13 +26,24 @@ class GameController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'icon' => 'required|string|max:10',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'currency_name' => 'required|string|max:50',
             'requires_server' => 'boolean',
             'profit_margin' => 'required|numeric|min:0|max:100',
             'is_active' => 'boolean',
         ]);
 
-        Game::create($request->all());
+        $data = $request->except('image');
+
+        // Handle image upload
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $imageName = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+            $image->move(public_path('storage/games'), $imageName);
+            $data['image'] = 'games/' . $imageName;
+        }
+
+        Game::create($data);
 
         return response()->json([
             'success' => true,
@@ -53,13 +64,29 @@ class GameController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'icon' => 'required|string|max:10',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'currency_name' => 'required|string|max:50',
             'requires_server' => 'boolean',
             'profit_margin' => 'required|numeric|min:0|max:100',
             'is_active' => 'boolean',
         ]);
 
-        $game->update($request->all());
+        $data = $request->except('image');
+
+        // Handle image upload
+        if ($request->hasFile('image')) {
+            // Delete old image if exists
+            if ($game->image && file_exists(public_path('storage/' . $game->image))) {
+                unlink(public_path('storage/' . $game->image));
+            }
+
+            $image = $request->file('image');
+            $imageName = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+            $image->move(public_path('storage/games'), $imageName);
+            $data['image'] = 'games/' . $imageName;
+        }
+
+        $game->update($data);
 
         return response()->json([
             'success' => true,
@@ -135,14 +162,15 @@ class GameController extends Controller
             'catalogue_id' => 'required|integer',
             'catalogue_name' => 'required|string',
             'catalogue_amount' => 'required|numeric',
+            'custom_price' => 'nullable|numeric|min:1',
         ]);
         
         try {
             $game = Game::findOrFail($id);
             $exchangeRate = \App\Models\Setting::get('usd_to_kyat_rate', 2100);
             
-            // Calculate price in Ks
-            $priceInKs = $request->catalogue_amount * $exchangeRate;
+            // Use custom price if provided, otherwise calculate from exchange rate
+            $priceInKs = $request->custom_price ?? ($request->catalogue_amount * $exchangeRate);
             
             // Extract currency amount from catalogue name (e.g., "310 Diamonds" -> 310)
             $currencyAmount = preg_match('/(\d+)/', $request->catalogue_name, $matches) 
@@ -265,7 +293,7 @@ class GameController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Package updated successfully',
+            'message' => 'Package updated successfully! Price changes will be visible to users immediately.',
         ]);
     }
 

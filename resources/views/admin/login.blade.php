@@ -10,11 +10,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Myanmar:wght@400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-gradient-to-br from-dark-background via-dark-base to-dark-background text-light-text font-sans antialiased">
-    <div class="min-h-screen flex items-center justify-center px-4 py-12">
-        <div class="max-w-md w-full">
+<body class="bg-dark-bg text-light-text font-sans antialiased relative">
+    <!-- Animated Network Background -->
+    <canvas id="networkCanvas" class="fixed inset-0 w-full h-full pointer-events-none" style="z-index: 0;"></canvas>
+    
+    <div class="min-h-screen flex items-center justify-center px-4 py-8 relative z-10">
+        <div class="max-w-md w-full my-8">
             <!-- Logo Card -->
-            <div class="card mb-8 text-center">
+            <div class="card mb-6 text-center">
                 <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto mb-4 shadow-xl">
                     <span class="text-5xl">🎮</span>
                 </div>
@@ -109,7 +112,7 @@
             </div>
 
             <!-- Security Notice -->
-            <div class="mt-6 text-center">
+            <div class="mt-6 text-center mb-8">
                 <p class="text-xs text-gray-500">
                     🔒 Secure admin access only. Unauthorized access is prohibited.
                 </p>
@@ -118,6 +121,112 @@
     </div>
 
 <script>
+// Animated Network Background
+(function() {
+    const canvas = document.getElementById('networkCanvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    let animationId;
+    
+    // Set canvas size
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Network nodes
+    const nodes = [];
+    const nodeCount = 50;
+    const connectionDistance = 150;
+    const nodeSpeed = 0.5;
+    
+    // Create nodes
+    class Node {
+        constructor() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.vx = (Math.random() - 0.5) * nodeSpeed;
+            this.vy = (Math.random() - 0.5) * nodeSpeed;
+            this.radius = Math.random() * 2 + 1;
+        }
+        
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            
+            // Bounce off edges
+            if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+            if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+            
+            // Keep in bounds
+            this.x = Math.max(0, Math.min(canvas.width, this.x));
+            this.y = Math.max(0, Math.min(canvas.height, this.y));
+        }
+        
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#00C897'; // Green color
+            ctx.fill();
+        }
+    }
+    
+    // Initialize nodes
+    for (let i = 0; i < nodeCount; i++) {
+        nodes.push(new Node());
+    }
+    
+    // Draw connections
+    function drawConnections() {
+        for (let i = 0; i < nodes.length; i++) {
+            for (let j = i + 1; j < nodes.length; j++) {
+                const dx = nodes[i].x - nodes[j].x;
+                const dy = nodes[i].y - nodes[j].y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < connectionDistance) {
+                    const opacity = 1 - (distance / connectionDistance);
+                    ctx.beginPath();
+                    ctx.moveTo(nodes[i].x, nodes[i].y);
+                    ctx.lineTo(nodes[j].x, nodes[j].y);
+                    ctx.strokeStyle = `rgba(0, 200, 151, ${opacity * 0.3})`; // Green with opacity
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+    
+    // Animation loop
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Update and draw nodes
+        nodes.forEach(node => {
+            node.update();
+            node.draw();
+        });
+        
+        // Draw connections
+        drawConnections();
+        
+        animationId = requestAnimationFrame(animate);
+    }
+    
+    // Start animation
+    animate();
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+        }
+    });
+})();
+
 function adminLoginData() {
     return {
         form: {

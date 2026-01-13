@@ -53,10 +53,77 @@
                         </label>
                     </div>
 
+                    <!-- Bot Status Display -->
+                    <div x-show="botStatus" 
+                         x-transition
+                         class="rounded-xl p-4"
+                         :class="botStatus.valid ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <span x-show="botStatus.valid" class="text-green-400">✅</span>
+                            <span x-show="!botStatus.valid" class="text-red-400">❌</span>
+                            <span class="font-semibold" 
+                                  :class="botStatus.valid ? 'text-green-400' : 'text-red-400'"
+                                  x-text="botStatus.valid ? 'Bot Status: Working' : 'Bot Status: Error'"></span>
+                        </div>
+                        <p class="text-sm" 
+                           :class="botStatus.valid ? 'text-green-400' : 'text-red-400'"
+                           x-text="botStatus.message"></p>
+                        <div x-show="botStatus.bot" class="mt-2 text-xs text-gray-400">
+                            <p x-text="'Bot Name: ' + (botStatus.bot?.first_name || 'N/A')"></p>
+                            <p x-text="'Bot Username: @' + (botStatus.bot?.username || 'N/A')"></p>
+                        </div>
+                    </div>
+
+                    <div x-show="chatStatus" 
+                         x-transition
+                         class="rounded-xl p-4"
+                         :class="chatStatus.valid ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <span x-show="chatStatus.valid" class="text-green-400">✅</span>
+                            <span x-show="!chatStatus.valid" class="text-red-400">❌</span>
+                            <span class="font-semibold" 
+                                  :class="chatStatus.valid ? 'text-green-400' : 'text-red-400'"
+                                  x-text="chatStatus.valid ? 'Chat ID: Valid' : 'Chat ID: Invalid'"></span>
+                        </div>
+                        <p class="text-sm" 
+                           :class="chatStatus.valid ? 'text-green-400' : 'text-red-400'"
+                           x-text="chatStatus.message"></p>
+                    </div>
+
                     <div x-show="botError" 
                          x-transition
                          class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm">
                         <span x-text="botError"></span>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex gap-3">
+                        <button type="button" 
+                                @click="checkBotStatus()"
+                                class="btn-outline flex-1 py-3"
+                                :disabled="checkingBot">
+                            <span x-show="!checkingBot">🔍 Check Bot</span>
+                            <span x-show="checkingBot" class="flex items-center justify-center">
+                                <svg class="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Checking...
+                            </span>
+                        </button>
+                        <button type="button" 
+                                @click="verifyChatId()"
+                                class="btn-outline flex-1 py-3"
+                                :disabled="verifyingChat">
+                            <span x-show="!verifyingChat">✅ Verify Chat ID</span>
+                            <span x-show="verifyingChat" class="flex items-center justify-center">
+                                <svg class="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Verifying...
+                            </span>
+                        </button>
                     </div>
 
                     <button type="submit" 
@@ -106,12 +173,18 @@
                                   placeholder="Enter broadcast message..."></textarea>
                     </div>
 
-                    <div>
+                    <div class="space-y-2">
                         <label class="flex items-center cursor-pointer">
                             <input type="checkbox" 
                                    x-model="broadcastForm.send_to_all" 
                                    class="w-4 h-4 rounded border-gray-700 bg-dark-base text-primary focus:ring-2 focus:ring-primary">
                             <span class="ml-2 text-sm text-gray-300">Send to all users</span>
+                        </label>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" 
+                                   x-model="broadcastForm.include_buttons" 
+                                   class="w-4 h-4 rounded border-gray-700 bg-dark-base text-primary focus:ring-2 focus:ring-primary">
+                            <span class="ml-2 text-sm text-gray-300">Include action buttons (Shop, Orders, Wallet, Support)</span>
                         </label>
                     </div>
 
@@ -177,16 +250,81 @@ function notificationsData() {
         },
         broadcastForm: {
             message: '',
-            send_to_all: true
+            send_to_all: true,
+            include_buttons: true
         },
         botLoading: false,
         broadcastLoading: false,
         testing: false,
+        checkingBot: false,
+        verifyingChat: false,
         botError: '',
+        botStatus: null,
+        chatStatus: null,
+        
+        async checkBotStatus() {
+            this.checkingBot = true;
+            this.botStatus = null;
+            
+            try {
+                const res = await fetch('/admin/notifications/check-bot', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({ token: this.botForm.token })
+                });
+                
+                const data = await res.json();
+                this.botStatus = {
+                    valid: data.success,
+                    message: data.message,
+                    bot: data.bot || null
+                };
+            } catch (e) {
+                this.botStatus = {
+                    valid: false,
+                    message: 'Error checking bot status: ' + e.message
+                };
+            } finally {
+                this.checkingBot = false;
+            }
+        },
+        
+        async verifyChatId() {
+            this.verifyingChat = true;
+            this.chatStatus = null;
+            
+            try {
+                const res = await fetch('/admin/notifications/verify-chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    }
+                });
+                
+                const data = await res.json();
+                this.chatStatus = {
+                    valid: data.success,
+                    message: data.message
+                };
+            } catch (e) {
+                this.chatStatus = {
+                    valid: false,
+                    message: 'Error verifying chat ID: ' + e.message
+                };
+            } finally {
+                this.verifyingChat = false;
+            }
+        },
         
         async saveBotSettings() {
             this.botLoading = true;
             this.botError = '';
+            this.botStatus = null;
+            this.chatStatus = null;
             
             try {
                 const res = await fetch('/admin/notifications/save-bot', {
@@ -204,6 +342,8 @@ function notificationsData() {
                     this.botError = data.message || 'Failed to save settings';
                 } else {
                     alert('Bot settings saved successfully!');
+                    // Auto check bot status after saving
+                    await this.checkBotStatus();
                 }
             } catch (e) {
                 this.botError = 'An error occurred. Please try again.';

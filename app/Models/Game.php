@@ -12,6 +12,7 @@ class Game extends Model
     protected $fillable = [
         'name',
         'icon',
+        'image',
         'currency_name',
         'requires_server',
         'profit_margin',

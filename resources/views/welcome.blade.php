@@ -9,8 +9,11 @@
         <div class="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto mb-6 shadow-2xl">
             <span class="text-6xl">🎮</span>
         </div>
+        @php
+            $siteName = \App\Models\Setting::get('site_name', 'RanKage');
+        @endphp
         <h1 class="text-4xl md:text-5xl font-bold text-light-text mb-4">
-            Welcome to <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">RanKage</span>
+            Welcome to <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">{{ $siteName }}</span>
         </h1>
         <p class="text-xl text-gray-400 mb-8">Your trusted game top-up platform in Myanmar</p>
         <div class="flex flex-col sm:flex-row gap-4 justify-center">

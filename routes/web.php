@@ -34,9 +34,12 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 
 // Authentication
 Route::get('/login', [UserAuthController::class, 'showLogin'])->name('login')->middleware('guest');
+Route::get('/register', [UserAuthController::class, 'showRegister'])->name('register')->middleware('guest');
 Route::post('/auth/send-otp', [UserAuthController::class, 'sendOTP']);
 Route::post('/auth/verify-otp', [UserAuthController::class, 'verifyOTP']);
-Route::get('/auth/telegram', [UserAuthController::class, 'telegramLogin'])->name('auth.telegram');
+Route::post('/auth/register', [UserAuthController::class, 'register'])->name('auth.register');
+Route::post('/auth/login-email', [UserAuthController::class, 'loginWithEmail'])->name('auth.login-email');
+Route::post('/auth/telegram', [UserAuthController::class, 'telegramLogin'])->name('auth.telegram');
 Route::post('/logout', [UserAuthController::class, 'logout'])->name('logout')->middleware('auth');
 
 // Games
@@ -102,6 +105,19 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         
+        // Profile
+        Route::get('/profile', [\App\Http\Controllers\Admin\ProfileController::class, 'index'])->name('profile.index');
+        Route::post('/profile', [\App\Http\Controllers\Admin\ProfileController::class, 'update'])->name('profile.update');
+        Route::post('/profile/password', [\App\Http\Controllers\Admin\ProfileController::class, 'changePassword'])->name('profile.password');
+        
+        // Logo
+        Route::get('/logo', [\App\Http\Controllers\Admin\LogoController::class, 'index'])->name('logo.index');
+        Route::post('/logo', [\App\Http\Controllers\Admin\LogoController::class, 'update'])->name('logo.update');
+        
+        // Promotions
+        Route::get('/promotions', [\App\Http\Controllers\Admin\PromotionController::class, 'index'])->name('promotions.index');
+        Route::post('/promotions', [\App\Http\Controllers\Admin\PromotionController::class, 'update'])->name('promotions.update');
+        
         // Games
         Route::get('/games', [AdminGameController::class, 'index'])->name('games.index');
         Route::get('/games/create', [AdminGameController::class, 'create'])->name('games.create');
@@ -109,13 +125,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/games/{id}/edit', [AdminGameController::class, 'edit'])->name('games.edit');
         Route::put('/games/{id}', [AdminGameController::class, 'update'])->name('games.update');
         Route::post('/games/{id}/toggle', [AdminGameController::class, 'toggle'])->name('games.toggle');
+        // More specific routes first to avoid route matching conflicts
+        Route::get('/games/{id}/packages/fetch-g2bulk', [AdminGameController::class, 'fetchG2BulkPackages'])->name('games.packages.fetch-g2bulk');
+        Route::post('/games/{id}/packages/import-g2bulk', [AdminGameController::class, 'importG2BulkPackage'])->name('games.packages.import-g2bulk');
         Route::get('/games/{id}/packages', [AdminGameController::class, 'packages'])->name('games.packages');
         Route::post('/games/{id}/packages', [AdminGameController::class, 'storePackage'])->name('games.packages.store');
         Route::get('/games/{gameId}/packages/{packageId}', [AdminGameController::class, 'getPackage'])->name('games.packages.get');
         Route::put('/games/{gameId}/packages/{packageId}', [AdminGameController::class, 'updatePackage'])->name('games.packages.update');
         Route::delete('/games/{gameId}/packages/{packageId}', [AdminGameController::class, 'deletePackage'])->name('games.packages.delete');
-        Route::get('/games/{id}/packages/fetch-g2bulk', [AdminGameController::class, 'fetchG2BulkPackages'])->name('games.packages.fetch-g2bulk');
-        Route::post('/games/{id}/packages/import-g2bulk', [AdminGameController::class, 'importG2BulkPackage'])->name('games.packages.import-g2bulk');
         
         // Orders
         Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
@@ -156,6 +173,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         // Notifications
         Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
         Route::post('/notifications/save-bot', [NotificationController::class, 'saveBot'])->name('notifications.save-bot');
+        Route::post('/notifications/check-bot', [NotificationController::class, 'checkBotStatus'])->name('notifications.check-bot');
+        Route::post('/notifications/verify-chat', [NotificationController::class, 'verifyChatId'])->name('notifications.verify-chat');
         Route::post('/notifications/test', [NotificationController::class, 'sendTest'])->name('notifications.test');
         Route::post('/notifications/broadcast', [NotificationController::class, 'broadcast'])->name('notifications.broadcast');
     });

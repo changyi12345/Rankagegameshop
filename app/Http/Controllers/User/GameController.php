@@ -132,12 +132,12 @@ class GameController extends Controller
                 'valid' => false,
                 'message' => $result['message'] ?? 'Invalid player ID',
             ], 400);
-} catch (\Exception $e) {
-   Log::error('Player ID check failed', [
-        'error' => $e->getMessage(),
-        'game_id' => $request->game_id,
-        'user_id' => $request->user_id,
-    ]);
+        } catch (\Exception $e) {
+            Log::error('Player ID check failed', [
+                'error' => $e->getMessage(),
+                'game_id' => $request->game_id,
+                'user_id' => $request->user_id,
+            ]);
             
             return response()->json([
                 'success' => false,

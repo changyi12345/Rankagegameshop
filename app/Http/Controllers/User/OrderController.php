@@ -76,6 +76,8 @@ class OrderController extends Controller
 
             // Check if package is from G2Bulk (starts with 'g2bulk_')
             $isG2BulkPackage = strpos($request->package_id, 'g2bulk_') === 0;
+            $package = null;
+            $priceInKs = 0;
             
             if ($isG2BulkPackage) {
                 // Get G2Bulk catalogue data from request or fetch from API
@@ -148,7 +150,9 @@ class OrderController extends Controller
                     ], 401);
                 }
                 
-                if (!method_exists(auth()->user(), 'hasEnoughBalance') || !auth()->user()->hasEnoughBalance($package->price)) {
+                $orderAmount = $isG2BulkPackage ? $priceInKs : $package->price;
+                
+                if (!method_exists(auth()->user(), 'hasEnoughBalance') || !auth()->user()->hasEnoughBalance($orderAmount)) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Insufficient wallet balance',
@@ -156,40 +160,27 @@ class OrderController extends Controller
                 }
             }
 
-            $order = Order::create([
-                'user_id' => auth()->id(),
-                'game_id' => $game->id,
-                'package_id' => $package->id,
-                'user_game_id' => trim($request->user_id),
-                'server_id' => $request->server_id ? trim($request->server_id) : null,
-                'amount' => $package->price,
-                'payment_method' => $request->payment_method,
-                'status' => 'pending',
-            ]);
-
             // Create payment record
-            $order->payment()->create([
+            $payment = $order->payment()->create([
                 'user_id' => auth()->id(),
                 'method' => $request->payment_method,
-                'amount' => $package->price,
+                'amount' => $order->amount,
                 'status' => $request->payment_method === 'wallet' ? 'approved' : 'pending',
             ]);
 
-            // Process wallet payment immediately
+            // Process wallet payment immediately and trigger auto topup
             if ($request->payment_method === 'wallet') {
                 if (method_exists(auth()->user(), 'deductBalance')) {
                     auth()->user()->deductBalance(
-                        $package->price,
+                        $order->amount,
                         "Order #{$order->order_id}",
                         Order::class,
                         $order->id
                     );
                 }
                 
-                // Process order via queue
-                if (class_exists(\App\Jobs\ProcessOrder::class)) {
-                    dispatch(new \App\Jobs\ProcessOrder($order));
-                }
+                // Auto process order via queue (API topup)
+                dispatch(new \App\Jobs\ProcessOrder($order));
             }
 
             return response()->json([
@@ -242,5 +233,49 @@ class OrderController extends Controller
             'success' => true,
             'message' => 'Account information updated successfully',
         ]);
+    }
+
+    /**
+     * Get game code mapping for G2Bulk API
+     */
+    protected function getGameCode(string $gameName): string
+    {
+        $mapping = [
+            'Mobile Legends' => 'mlbb',
+            'mobile legends' => 'mlbb',
+            'MLBB' => 'mlbb',
+            'PUBG Mobile' => 'pubgm',
+            'pubg mobile' => 'pubgm',
+            'PUBGMobile' => 'pubgm',
+            'PUBG' => 'pubgm',
+            'pubg' => 'pubgm',
+            'Honor of Kings' => 'hok',
+            'honor of kings' => 'hok',
+            'HOK' => 'hok',
+            'hok' => 'hok',
+            'Arena of Valor' => 'hok',
+            'arena of valor' => 'hok',
+            'Free Fire' => 'freefire',
+            'free fire' => 'freefire',
+            'FreeFire' => 'freefire',
+            'Valorant' => 'valorant',
+            'valorant' => 'valorant',
+        ];
+
+        // Try exact match first
+        if (isset($mapping[$gameName])) {
+            return $mapping[$gameName];
+        }
+
+        // Try case-insensitive match
+        $lowerName = strtolower($gameName);
+        foreach ($mapping as $key => $value) {
+            if (strtolower($key) === $lowerName) {
+                return $value;
+            }
+        }
+
+        // Default: convert to lowercase and replace spaces with underscores
+        return strtolower(str_replace(' ', '_', $gameName));
     }
 }
