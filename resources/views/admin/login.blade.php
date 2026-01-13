@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Admin Login - RanKage Game Shop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Myanmar:wght@400;500;600;700&display=swap" rel="stylesheet">
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body class="bg-gradient-to-br from-dark-background via-dark-base to-dark-background text-light-text font-sans antialiased">
+    <div class="min-h-screen flex items-center justify-center px-4 py-12">
+        <div class="max-w-md w-full">
+            <!-- Logo Card -->
+            <div class="card mb-8 text-center">
+                <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto mb-4 shadow-xl">
+                    <span class="text-5xl">🎮</span>
+                </div>
+                <h1 class="text-3xl font-bold text-light-text mb-2">RanKage</h1>
+                <p class="text-gray-400 mb-1">Admin Panel</p>
+                <div class="w-16 h-1 bg-gradient-to-r from-primary to-secondary mx-auto rounded-full"></div>
+            </div>
+            
+            <!-- Login Card -->
+            <div class="card">
+                <h2 class="text-xl font-bold text-light-text mb-6">Sign In</h2>
+                
+                <div x-data="adminLoginData()">
+                    <form @submit.prevent="login">
+                        <div class="space-y-5">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-300 mb-2">Email or Phone</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                        </svg>
+                                    </div>
+                                    <input type="text" 
+                                           x-model="form.login" 
+                                           required 
+                                           class="input-field pl-12" 
+                                           placeholder="admin@rankage.com or 09123456789"
+                                           autofocus>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-300 mb-2">Password</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                        </svg>
+                                    </div>
+                                    <input type="password" 
+                                           x-model="form.password" 
+                                           required 
+                                           class="input-field pl-12" 
+                                           placeholder="Enter your password">
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between">
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="checkbox" x-model="form.remember" id="remember" class="w-4 h-4 rounded border-gray-700 bg-dark-base text-primary focus:ring-2 focus:ring-primary">
+                                    <span class="ml-2 text-sm text-gray-400">Remember me</span>
+                                </label>
+                                <a href="#" class="text-sm text-primary hover:text-blue-400 transition-colors">Forgot password?</a>
+                            </div>
+
+                            <div x-show="error" 
+                                 x-transition
+                                 class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm flex items-center space-x-2">
+                                <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span x-text="error"></span>
+                            </div>
+
+                            <button type="submit" 
+                                    class="btn-primary w-full py-4 text-base font-semibold"
+                                    :disabled="loading">
+                                <span x-show="!loading" class="flex items-center justify-center">
+                                    <span>Sign In</span>
+                                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                                    </svg>
+                                </span>
+                                <span x-show="loading" class="flex items-center justify-center">
+                                    <svg class="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Logging in...
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="mt-6 pt-6 border-t border-gray-800 text-center">
+                        <a href="/login" class="text-sm text-gray-400 hover:text-primary transition-colors">
+                            ← Back to User Login
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security Notice -->
+            <div class="mt-6 text-center">
+                <p class="text-xs text-gray-500">
+                    🔒 Secure admin access only. Unauthorized access is prohibited.
+                </p>
+            </div>
+        </div>
+    </div>
+
+<script>
+function adminLoginData() {
+    return {
+        form: {
+            login: '',
+            password: '',
+            remember: false
+        },
+        loading: false,
+        error: '',
+        async login() {
+            this.loading = true;
+            this.error = '';
+            
+            try {
+                const res = await fetch('/admin/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify(this.form)
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    window.location.href = '/admin/dashboard';
+                } else {
+                    this.error = data.message || 'Invalid credentials';
+                }
+            } catch (e) {
+                this.error = 'An error occurred. Please try again.';
+            } finally {
+                this.loading = false;
+            }
+        }
+    }
+}
+</script>
+</body>
+</html>
