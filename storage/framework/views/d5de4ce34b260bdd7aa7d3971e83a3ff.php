@@ -9,8 +9,12 @@
         <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center mx-auto mb-4 shadow-xl">
             <span class="text-5xl">🎮</span>
         </div>
-        <h1 class="text-3xl font-bold text-light-text mb-2">RanKage</h1>
-        <p class="text-gray-400 mb-1">Game Shop</p>
+        <?php
+            $siteName = \App\Models\Setting::get('site_name', 'RanKage');
+            $siteTagline = \App\Models\Setting::get('site_tagline', 'Game Shop');
+        ?>
+        <h1 class="text-3xl font-bold text-light-text mb-2"><?php echo e($siteName); ?></h1>
+        <p class="text-gray-400 mb-1"><?php echo e($siteTagline); ?></p>
         <div class="w-16 h-1 bg-gradient-to-r from-primary to-secondary mx-auto rounded-full"></div>
     </div>
 
